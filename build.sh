@@ -62,6 +62,8 @@ chown kiosk:kiosk /home/kiosk/.profile
 # ==============================================
 # 5️⃣ Optional: Disable screen blanking
 # ==============================================
+mkdir -p /home/kiosk/.config/openbox
+
 cat > /home/kiosk/.config/openbox/autostart <<'EOF'
 # Prevent screen from blanking
 xset s off
