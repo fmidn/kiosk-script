@@ -7,7 +7,7 @@ apk add openbox xorg-server xf86-video-vesa chromium xinit
 
 # 2. Buat user kiosk (jika belum ada)
 adduser -h /home/kiosk -D kiosk
-echo "kiosk:passwordanda" | chpasswd
+echo "kiosk:kiosk" | chpasswd
 
 # 3. Autologin user kiosk di tty1
 sed -i 's|^tty1::.*|tty1::respawn:/bin/login -f kiosk tty1 </dev/tty1 >/dev/tty1 2>&1|' /etc/inittab
