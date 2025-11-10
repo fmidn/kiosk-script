@@ -1,39 +1,93 @@
 #!/bin/sh
-# Setup Alpine Linux Kiosk Mode dengan Chromium
+# ==============================================
+# Alpine Linux 3.22 Kiosk Mode (Chromium + Openbox)
+# Compatible with modesetting driver
+# ==============================================
 
-# 1. Install X11, Openbox, dan Chromium
+set -e
+
+echo ">>> Updating system..."
 apk update
-apk add openbox xorg-server xf86-video-vesa chromium xinit
+apk upgrade
 
-# 2. Buat user kiosk (jika belum ada)
-adduser -h /home/kiosk -D kiosk
-echo "kiosk:kiosk" | chpasswd
+echo ">>> Installing Xorg, Openbox, and Chromium..."
+apk add xorg-server mesa mesa-dri-gallium \
+        openbox xinit xf86-video-vesa chromium \
+        dbus ttf-dejavu
 
-# 3. Autologin user kiosk di tty1
+# ==============================================
+# 1️⃣ Create user kiosk
+# ==============================================
+if ! id kiosk >/dev/null 2>&1; then
+    echo ">>> Creating user: kiosk"
+    adduser -h /home/kiosk -D kiosk
+    echo "kiosk:changeme" | chpasswd
+fi
+
+# ==============================================
+# 2️⃣ Enable autologin for kiosk on tty1
+# ==============================================
+echo ">>> Enabling autologin for kiosk..."
 sed -i 's|^tty1::.*|tty1::respawn:/bin/login -f kiosk tty1 </dev/tty1 >/dev/tty1 2>&1|' /etc/inittab
 
-# 4. Buat file .xinitrc untuk autostart Chromium
-su - kiosk -c "cat << 'EOF' > /home/kiosk/.xinitrc
+# ==============================================
+# 3️⃣ Create .xinitrc for kiosk
+# ==============================================
+echo ">>> Creating kiosk X session..."
+su - kiosk -c "cat > /home/kiosk/.xinitrc <<'EOF'
 #!/bin/sh
+# Start Openbox
 exec openbox-session &
-(sleep 2 && chromium --no-first-run --noerrdialogs \
-  --disable-infobars --disable-session-crashed-bubble \
-  --disable-translate --kiosk https://webapp-anda.com) &
+# Launch Chromium in kiosk mode
+(sleep 2 && chromium \
+  --no-first-run --noerrdialogs --disable-infobars \
+  --disable-session-crashed-bubble --disable-translate \
+  --start-fullscreen --kiosk https://example.com) &
 EOF"
+
 chown kiosk:kiosk /home/kiosk/.xinitrc
 chmod +x /home/kiosk/.xinitrc
 
-# 5. Autostart X ketika login di tty1
-cat << 'EOF' >> /home/kiosk/.profile
+# ==============================================
+# 4️⃣ Auto-start X when kiosk logs in
+# ==============================================
+echo ">>> Configuring autostart X at login..."
+cat > /home/kiosk/.profile <<'EOF'
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   startx
 fi
 EOF
 chown kiosk:kiosk /home/kiosk/.profile
 
-# 6. Commit konfigurasi jika menggunakan Alpine mode diskless
+# ==============================================
+# 5️⃣ Optional: Disable screen blanking
+# ==============================================
+cat > /home/kiosk/.config/openbox/autostart <<'EOF'
+# Prevent screen from blanking
+xset s off
+xset -dpms
+xset s noblank
+EOF
+chown -R kiosk:kiosk /home/kiosk/.config
+
+# ==============================================
+# 6️⃣ Enable SSH for maintenance (optional)
+# ==============================================
+apk add openssh
+rc-update add sshd
+service sshd start
+
+# ==============================================
+# 7️⃣ Commit configuration if using diskless mode
+# ==============================================
 if [ -x /sbin/lbu ]; then
-  lbu commit
+    echo ">>> Committing changes (diskless mode detected)..."
+    lbu add /etc/inittab /home/kiosk
+    lbu commit
 fi
 
-echo "✅ Kiosk setup selesai. Reboot untuk masuk otomatis ke Chromium fullscreen."
+echo
+echo "✅ Setup complete!"
+echo "Reboot the system, it will auto-login as 'kiosk' and launch Chromium fullscreen."
+echo "Default password for kiosk: changeme"
+echo
