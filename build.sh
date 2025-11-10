@@ -21,7 +21,7 @@ apk add xorg-server mesa mesa-dri-gallium \
 if ! id kiosk >/dev/null 2>&1; then
     echo ">>> Creating user: kiosk"
     adduser -h /home/kiosk -D kiosk
-    echo "kiosk:changeme" | chpasswd
+    echo "kiosk:kiosk" | chpasswd
 fi
 
 # ==============================================
